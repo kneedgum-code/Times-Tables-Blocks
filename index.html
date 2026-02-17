@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Times Table Blocks: High Stakes Edition</title>
+    <title>Times Tables Blocks: High Stakes Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -159,15 +159,25 @@
 
         .show-popup { animation: popup 1.5s forwards; }
 
-        .blast-anim {
-            animation: blast 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        /* Knipper-animatie voor volle rijen/kolommen */
+        .flash-anim {
+            animation: flash 0.3s ease-in-out 2; /* Knippert 2 keer */
             z-index: 10;
         }
 
+        @keyframes flash {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(3); background-color: white !important; }
+        }
+
+        /* Verdwijn-animatie na het knipperen */
+        .blast-anim {
+            animation: blast 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
         @keyframes blast {
-            0% { transform: scale(1); filter: brightness(1) white; background-color: white !important; }
-            30% { transform: scale(1.1); filter: brightness(5); background-color: white !important; opacity: 1; box-shadow: 0 0 20px white; }
-            100% { transform: scale(0); filter: brightness(10); opacity: 0; }
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0); opacity: 0; }
         }
 
         .timer-bar {
@@ -230,7 +240,7 @@
         <h2 class="text-xl font-black text-blue-400 mb-4 uppercase">Speluitleg</h2>
         <ul class="text-left text-xs space-y-3 text-gray-300">
             <li>🧩 <span class="text-white font-bold">Plaats blokken:</span> Sleep blokken naar het bord om lijnen te vullen.</li>
-            <li>🚀 <span class="text-white font-bold">Blast:</span> Een volle rij of kolom verdwijnt en geeft punten.</li>
+            <li>🚀 <span class="text-white font-bold">Blast:</span> Een volle rij of kolom knippert en verdwijnt voor punten.</li>
             <li>🧠 <span class="text-white font-bold">Save-ronde:</span> Als je vastloopt, kun je je score bewaren door 5 tafelsommen op te lossen.</li>
             <li>🎙️ <span class="text-white font-bold">Voice:</span> Gebruik de microfoon om antwoorden in te spreken (ingedrukt houden).</li>
             <li>🔥 <span class="text-white font-bold">10 Tafels:</span> Kies alle tafels voor de 50s Double Challenge!</li>
@@ -367,7 +377,7 @@
 <script>
     // State
     const GRID_SIZE = 8;
-    const CHALLENGE_TIME = 50; // Verlengd naar 50 seconden voor de Double Challenge
+    const CHALLENGE_TIME = 50; 
     let score = 0;
     let grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
     let activePieces = [null, null, null];
@@ -540,7 +550,7 @@
 
     const COLORS = ['#FF5E5E', '#FFB84E', '#4E9FFF', '#4EFAFF', '#B04EFF', '#7DFF4E', '#F1C40F'];
     
-    // Variëteit aan blokken inclusief de 3x3 en grote L
+    // Variëteit aan blokken (1x1 is verwijderd)
     const PIECE_TYPES = [
         [[1,1]], // 1x2
         [[1],[1]], // 2x1
@@ -553,8 +563,7 @@
         [[1,1,1],[1,0,0],[1,0,0]], // Grote L-vorm
         [[1,1,0],[0,1,1]], // Z-vorm
         [[0,1,1],[1,1,0]], // S-vorm
-        [[1,1,1],[1,1,1]], // 2x3 Rechthoek
-        [[1]] // Enkel blokje
+        [[1,1,1],[1,1,1]] // 2x3 Rechthoek
     ];
 
     function generatePieces() {
@@ -681,14 +690,36 @@
         }
         if(rs.length + cs.length > 0) {
             isAnimating = true;
+
+            // Stap 1: Knipper 2 keer wit
             rs.forEach(r => { 
-                for(let i=0; i<GRID_SIZE; i++) document.getElementById(`cell-${r}-${i}`).classList.add('blast-anim'); 
+                for(let i=0; i<GRID_SIZE; i++) document.getElementById(`cell-${r}-${i}`).classList.add('flash-anim'); 
             });
             cs.forEach(c => { 
-                for(let i=0; i<GRID_SIZE; i++) document.getElementById(`cell-${i}-${c}`).classList.add('blast-anim'); 
+                for(let i=0; i<GRID_SIZE; i++) document.getElementById(`cell-${i}-${c}`).classList.add('flash-anim'); 
             });
             
+            // Wacht op de knipper-animatie (2 x 0.3s = 0.6s)
             await new Promise(res => setTimeout(res, 600));
+
+            // Stap 2: Verdwijn-animatie
+            rs.forEach(r => { 
+                for(let i=0; i<GRID_SIZE; i++) {
+                    const el = document.getElementById(`cell-${r}-${i}`);
+                    el.classList.remove('flash-anim');
+                    el.classList.add('blast-anim');
+                }
+            });
+            cs.forEach(c => { 
+                for(let i=0; i<GRID_SIZE; i++) {
+                    const el = document.getElementById(`cell-${i}-${c}`);
+                    el.classList.remove('flash-anim');
+                    el.classList.add('blast-anim');
+                }
+            });
+
+            // Wacht op de blast-animatie
+            await new Promise(res => setTimeout(res, 300));
             
             rs.forEach(r => grid[r].fill(0));
             cs.forEach(c => grid.forEach(r => r[c]=0));
@@ -708,7 +739,7 @@
         document.querySelectorAll('.cell').forEach(c => {
             const v = grid[c.dataset.r][c.dataset.c];
             c.style.backgroundColor = v===0 ? 'var(--cell-bg)' : v;
-            c.classList.remove('blast-anim');
+            c.classList.remove('flash-anim', 'blast-anim');
         });
         document.getElementById('score-display').innerText = score;
     }
